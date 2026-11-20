@@ -1,14 +1,14 @@
-#Author: MLE_qwq | Version: v20261120150700
+#Author: MLE_qwq | Version: v20261120154800
 
 #this function scans whether the line of sight of @e[tag=current_shooter,limit=1] intersects with the hitbox of @s (size of hitbox configurated between lines 66 and 86), along with summoning a marker with tag "predicated_bullet_hit_pos" at the point where the line of sight first intersects with the hitbox. If positive, then the entity @s will be tagged "within_range" :3
 
-#!NOTE 1: THE EDGE CASE WHERE THE DIRECTION UNIT VECTOR HAS A COMPONENT BEING 0 DID NOT FALL UNDER CONSIDERATION - if you wanted to be more precise do implement that on your own, sry
-#NOTE 2: every value is scaled by 1000 to handle decimals in this implementation
-#NOTE 3: this function is 1-to-1 (1 ray vs 1 hitbox). you'll have to handle 1-to-multiple, or rather, multiple-to-multiple, on your own, sry again...
-#NOTE 4: the following two commands below does the untagging of "within_range" from @s, and the removal of the "predicated_bullet_hit_pos" marker beforehand, if you dont want them to occur just disable them
+#NOTE 0: every value is scaled by 1000 to handle decimals in this implementation
+#NOTE 1: this function is 1-to-1 (1 ray vs 1 hitbox). you'll have to handle 1-to-multiple, or rather, multiple-to-multiple, on your own, sry again...
+#NOTE 2: the following two commands below does the untagging of "within_range" from @s, and the removal of the "predicated_bullet_hit_pos" marker beforehand, if you dont want them to occur just disable them
     tag @s remove within_range
     kill @e[tag=predicated_bullet_hit_pos]
 
+#learn details at a video in my youtube channel https://www.youtube.com/@MLE_qwq
 
 #scoreboard objective init
     scoreboard objectives add const.1000 dummy
@@ -86,7 +86,7 @@
         scoreboard players operation #global game.mechanism.gunshot_scan.y_bound_min -= #global game.mechanism.gunshot_scan.shooter_eyes_y
     #y_max = (Ty + 2) - Sy
         scoreboard players operation #global game.mechanism.gunshot_scan.y_bound_max = #global game.mechanism.gunshot_scan.y_bound_min
-        scoreboard players add #global game.mechanism.gunshot_scan.y_bound_max 1850
+        scoreboard players add #global game.mechanism.gunshot_scan.y_bound_max 2000
     #z_min = (Tz - 0.5) - Sz
         scoreboard players operation #global game.mechanism.gunshot_scan.z_bound_min = #global game.mechanism.gunshot_scan.target_feet_z
         scoreboard players remove #global game.mechanism.gunshot_scan.z_bound_min 500
@@ -137,6 +137,40 @@
         execute if score #global game.mechanism.gunshot_scan.t_z_0 <= #global game.mechanism.gunshot_scan.t_z_1 run scoreboard players operation #global game.mechanism.gunshot_scan.t_z_max = #global game.mechanism.gunshot_scan.t_z_1
         execute if score #global game.mechanism.gunshot_scan.t_z_0 > #global game.mechanism.gunshot_scan.t_z_1 run scoreboard players operation #global game.mechanism.gunshot_scan.t_z_min = #global game.mechanism.gunshot_scan.t_z_1
         execute if score #global game.mechanism.gunshot_scan.t_z_0 > #global game.mechanism.gunshot_scan.t_z_1 run scoreboard players operation #global game.mechanism.gunshot_scan.t_z_max = #global game.mechanism.gunshot_scan.t_z_0
+    #edge cases: a component in direction vector is zero?
+        #note: before this, x/y/z_bound_min/max is relative to the shooter, while we now need them to be relative to (0,0,0). hence add the shooter eye coords to them, and then substract afterwards.
+        #converting x/y/z_bound_min/max from being relative to the shooter into being relative to (0,0,0)
+            scoreboard players operation #global game.mechanism.gunshot_scan.x_bound_min += #global game.mechanism.gunshot_scan.shooter_eyes_x
+            scoreboard players operation #global game.mechanism.gunshot_scan.y_bound_min += #global game.mechanism.gunshot_scan.shooter_eyes_y
+            scoreboard players operation #global game.mechanism.gunshot_scan.z_bound_min += #global game.mechanism.gunshot_scan.shooter_eyes_z
+            scoreboard players operation #global game.mechanism.gunshot_scan.x_bound_max += #global game.mechanism.gunshot_scan.shooter_eyes_x
+            scoreboard players operation #global game.mechanism.gunshot_scan.y_bound_max += #global game.mechanism.gunshot_scan.shooter_eyes_y
+            scoreboard players operation #global game.mechanism.gunshot_scan.z_bound_max += #global game.mechanism.gunshot_scan.shooter_eyes_z
+        #v_x = 0
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_x matches 0 run scoreboard players set #global game.mechanism.gunshot_scan.t_x_min 1
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_x matches 0 run scoreboard players set #global game.mechanism.gunshot_scan.t_x_max 0
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_x matches 0 if score #global game.mechanism.gunshot_scan.shooter_eyes_x >= #global game.mechanism.gunshot_scan.x_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_x <= #global game.mechanism.gunshot_scan.x_bound_max run scoreboard players set #global game.mechanism.gunshot_scan.t_x_min -2147483648
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_x matches 0 if score #global game.mechanism.gunshot_scan.shooter_eyes_x >= #global game.mechanism.gunshot_scan.x_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_x <= #global game.mechanism.gunshot_scan.x_bound_max run scoreboard players set #global game.mechanism.gunshot_scan.t_x_max 2147483647
+        #v_y = 0
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_y matches 0 run scoreboard players set #global game.mechanism.gunshot_scan.t_y_min 1
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_y matches 0 run scoreboard players set #global game.mechanism.gunshot_scan.t_y_max 0
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_y matches 0 if score #global game.mechanism.gunshot_scan.shooter_eyes_y >= #global game.mechanism.gunshot_scan.y_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_y <= #global game.mechanism.gunshot_scan.y_bound_max run scoreboard players set #global game.mechanism.gunshot_scan.t_y_min -2147483648
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_y matches 0 if score #global game.mechanism.gunshot_scan.shooter_eyes_y >= #global game.mechanism.gunshot_scan.y_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_y <= #global game.mechanism.gunshot_scan.y_bound_max run scoreboard players set #global game.mechanism.gunshot_scan.t_y_max 2147483647
+        #v_z = 0
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_z matches 0 run scoreboard players set #global game.mechanism.gunshot_scan.t_z_min 1
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_z matches 0 run scoreboard players set #global game.mechanism.gunshot_scan.t_z_max 0
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_z matches 0 if score #global game.mechanism.gunshot_scan.shooter_eyes_z >= #global game.mechanism.gunshot_scan.z_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_z <= #global game.mechanism.gunshot_scan.z_bound_max run scoreboard players set #global game.mechanism.gunshot_scan.t_z_min -2147483648
+            execute if score #global game.mechanism.gunshot_scan.shooter_look_dir_z matches 0 if score #global game.mechanism.gunshot_scan.shooter_eyes_z >= #global game.mechanism.gunshot_scan.z_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_z <= #global game.mechanism.gunshot_scan.z_bound_max run scoreboard players set #global game.mechanism.gunshot_scan.t_z_max 2147483647
+        #in addition, if eye coords within hitbox in all three dimensions, immediately pass - this is not inside the edge case but is put here because we needed x/y/z_bound_min/max to be relative to (0,0,0)
+            execute if score #global game.mechanism.gunshot_scan.shooter_eyes_x >= #global game.mechanism.gunshot_scan.x_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_x <= #global game.mechanism.gunshot_scan.x_bound_max if score #global game.mechanism.gunshot_scan.shooter_eyes_y >= #global game.mechanism.gunshot_scan.y_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_y <= #global game.mechanism.gunshot_scan.y_bound_max if score #global game.mechanism.gunshot_scan.shooter_eyes_z >= #global game.mechanism.gunshot_scan.z_bound_min if score #global game.mechanism.gunshot_scan.shooter_eyes_z <= #global game.mechanism.gunshot_scan.z_bound_max run tag @s add within_range
+        #converting x/y/z_bound_min/max back to being relative to the shooter
+            scoreboard players operation #global game.mechanism.gunshot_scan.x_bound_min -= #global game.mechanism.gunshot_scan.shooter_eyes_x
+            scoreboard players operation #global game.mechanism.gunshot_scan.y_bound_min -= #global game.mechanism.gunshot_scan.shooter_eyes_y
+            scoreboard players operation #global game.mechanism.gunshot_scan.z_bound_min -= #global game.mechanism.gunshot_scan.shooter_eyes_z
+            scoreboard players operation #global game.mechanism.gunshot_scan.x_bound_max -= #global game.mechanism.gunshot_scan.shooter_eyes_x
+            scoreboard players operation #global game.mechanism.gunshot_scan.y_bound_max -= #global game.mechanism.gunshot_scan.shooter_eyes_y
+            scoreboard players operation #global game.mechanism.gunshot_scan.z_bound_max -= #global game.mechanism.gunshot_scan.shooter_eyes_z
+    
     #t_enter = max(t_x/y/z_min), t_exit = min(t_x/y/z_max)
         scoreboard players operation #global game.mechanism.gunshot_scan.t_enter = #global game.mechanism.gunshot_scan.t_x_min
         execute if score #global game.mechanism.gunshot_scan.t_y_min > #global game.mechanism.gunshot_scan.t_enter run scoreboard players operation #global game.mechanism.gunshot_scan.t_enter = #global game.mechanism.gunshot_scan.t_y_min
@@ -165,7 +199,7 @@
         scoreboard players operation #global game.mechanism.gunshot_scan.hit_pos_z /= #const const.1000
         scoreboard players operation #global game.mechanism.gunshot_scan.hit_pos_z += #global game.mechanism.gunshot_scan.shooter_eyes_z
 
-    execute if entity @s[tag=within_range] run summon marker ~ ~ ~ {Tags:["predicated_bullet_hit_pos","newbie"]}
+    execute if entity @s[tag=within_range] run summon marker ~ ~ ~ {Tags:["predicated_bullet_hit_pos","newbie"],CustomName:"Predicated Bullet Hitting Position"}
     execute store result entity @e[tag=predicated_bullet_hit_pos,tag=newbie,limit=1] Pos[0] double 0.001 run scoreboard players get #global game.mechanism.gunshot_scan.hit_pos_x
     execute store result entity @e[tag=predicated_bullet_hit_pos,tag=newbie,limit=1] Pos[1] double 0.001 run scoreboard players get #global game.mechanism.gunshot_scan.hit_pos_y
     execute store result entity @e[tag=predicated_bullet_hit_pos,tag=newbie,limit=1] Pos[2] double 0.001 run scoreboard players get #global game.mechanism.gunshot_scan.hit_pos_z
